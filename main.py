@@ -8,20 +8,23 @@ load_dotenv()
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4o-mini"  # Use a different model
-config["quick_think_llm"] = "gpt-4o-mini"  # Use a different model
+config["llm_provider"] = "ollama"  # Use a local LLM provider
+config["deep_think_llm"] = "phi4-mini"  # Use a different model
+config["quick_think_llm"] = "phi4-mini"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance and alpha_vantage)
 config["data_vendors"] = {
-    "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
-    "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
-    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
-    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
+    "core_stock_apis": "yfinance",  # Options: yfinance, alpha_vantage, local
+    "technical_indicators": "yfinance",  # Options: yfinance, alpha_vantage, local
+    "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
+    "news_data": "alpha_vantage",  # Options: openai, alpha_vantage, google, local
 }
 
 # Initialize with custom config
-ta = TradingAgentsGraph(debug=True, config=config)
+ta = TradingAgentsGraph(
+    debug=False, config=config, selected_analysts=["market", "news", "fundamentals"]
+)
 
 # forward propagate
 _, decision = ta.propagate("NVDA", "2024-05-10")

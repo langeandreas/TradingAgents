@@ -54,7 +54,7 @@ def create_fundamentals_analyst(llm):
 
         if len(result.tool_calls) == 0:
             report = result.content
-
+        print("Fundamentals Analyst Report generated")
         return {
             "messages": [result],
             "fundamentals_report": report,
