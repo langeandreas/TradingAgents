@@ -127,6 +127,10 @@ cp .env.example .env
 # Edit .env with your actual API keys
 ```
 
+## For locally run LLMs (Ollama)
+- download model of your choice (tested llama3.1:8b) unsing ollama pull <model:tag>
+- download nomic-embed-text:latest using ollama pull nomic-embed-text:latest
+
 **Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
