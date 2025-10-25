@@ -1,8 +1,3 @@
-from langchain_core.messages import AIMessage
-import time
-import json
-
-
 def create_bear_researcher(llm, memory):
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
@@ -14,34 +9,48 @@ def create_bear_researcher(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        counterfactual_analysis = state.get("counterfactual_analysis", "")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
+        for rec in past_memories:
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        # Check if this is responding to a bull argument
+        debate_count = investment_debate_state.get("count", 0)
+        bull_argument = current_response if current_response.startswith("Bull") else ""
 
-Key points to focus on:
+        if bull_argument:
+            focus_instruction = f"CRITICAL: The bull analyst just claimed: '{bull_argument[:200]}...' Counter with NEW risk factors that haven't been discussed yet. Do NOT repeat previous bear points from history: {bear_history[:300]}. Find fresh concerns and weaknesses."
+        else:
+            focus_instruction = "Present your initial bear case with 3-4 specific risk factors and concerns. Focus on concrete data and avoid generic warnings."
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+        prompt = f"""You are a Bear Analyst arguing against investing in this stock. {focus_instruction}
 
-Resources available:
+STRICT REQUIREMENTS:
+1. DO NOT repeat arguments already made in your previous statements: {bear_history}
+2. If responding to bull analyst, directly quote and challenge their specific claims
+3. Introduce NEW risks, data points, or concerns not yet discussed
+4. Keep response focused and under 200 words
+5. End with one specific reason why the investment is risky now
 
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bull argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
+DEBATE CONTEXT:
+- Current debate round: {debate_count + 1}
+- Previous bear arguments made: {bear_history[:400] if bear_history else "None yet"}
+- Bull's latest claim: {bull_argument[:400] if bull_argument else "None yet"}
+
+DATA SOURCES (use selectively to find NEW risks):
+Market research: {market_research_report[:500]}...
+Fundamentals: {fundamentals_report[:500]}...
+Sentiment: {sentiment_report[:300]}...
+News: {news_report[:300]}...
+Counterfactual scenarios: {counterfactual_analysis[:400] if counterfactual_analysis else "None available"}...
+
+COUNTERFACTUAL INSTRUCTION: Use the scenario analysis to identify which future conditions would make this investment particularly risky. Reference specific scenarios and their probabilities in your argument.
+
+Deliver a focused, novel bear argument that exposes new risks or challenges the bull's latest claims.
 """
 
         response = llm.invoke(prompt)
@@ -55,7 +64,7 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
         }
-
+        print("Bear argument generated.")
         return {"investment_debate_state": new_investment_debate_state}
 
     return bear_node
