@@ -51,7 +51,8 @@ class MessageBuffer:
             "Social Analyst": "pending",
             "News Analyst": "pending",
             "Fundamentals Analyst": "pending",
-            # Research Team
+            # Research Team  
+            "Counterfactual Analyst": "pending",
             "Bull Researcher": "pending",
             "Bear Researcher": "pending",
             "Research Manager": "pending",
@@ -70,6 +71,7 @@ class MessageBuffer:
             "sentiment_report": None,
             "news_report": None,
             "fundamentals_report": None,
+            "counterfactual_analysis": None,
             "investment_plan": None,
             "trader_investment_plan": None,
             "final_trade_decision": None,
@@ -111,6 +113,7 @@ class MessageBuffer:
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
+                "counterfactual_analysis": "Counterfactual Scenario Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -133,6 +136,7 @@ class MessageBuffer:
                 "sentiment_report",
                 "news_report",
                 "fundamentals_report",
+                "counterfactual_analysis",
             ]
         ):
             report_parts.append("## Analyst Team Reports")
@@ -225,7 +229,7 @@ def update_display(layout, spinner_text=None):
             "News Analyst",
             "Fundamentals Analyst",
         ],
-        "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
+        "Research Team": ["Counterfactual Analyst", "Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
         "Risk Management": ["Risky Analyst", "Neutral Analyst", "Safe Analyst"],
         "Portfolio Management": ["Portfolio Manager"],
@@ -398,7 +402,7 @@ def update_display(layout, spinner_text=None):
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt", "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
@@ -467,6 +471,17 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
+    # Step 4.5: Counterfactual Analysis
+    console.print(
+        create_question_box(
+            "Step 4.5: Counterfactual Analysis", "Enable scenario-based analysis to enhance debates"
+        )
+    )
+    enable_counterfactual = select_counterfactual_option()
+    console.print(
+        f"[green]Counterfactual Analysis:[/green] {'Enabled' if enable_counterfactual else 'Disabled'}"
+    )
+
     # Step 5: OpenAI backend
     console.print(
         create_question_box(
@@ -489,6 +504,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "enable_counterfactual": enable_counterfactual,
         "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
@@ -567,6 +583,17 @@ def display_complete_report(final_state):
                 Markdown(final_state["fundamentals_report"]),
                 title="Fundamentals Analyst",
                 border_style="blue",
+                padding=(1, 2),
+            )
+        )
+
+    # Counterfactual Analyst Report
+    if final_state.get("counterfactual_analysis"):
+        analyst_reports.append(
+            Panel(
+                Markdown(final_state["counterfactual_analysis"]),
+                title="Counterfactual Analyst",
+                border_style="cyan",
                 padding=(1, 2),
             )
         )
@@ -750,7 +777,10 @@ def run_analysis():
 
     # Initialize the graph
     graph = TradingAgentsGraph(
-        [analyst.value for analyst in selections["analysts"]], config=config, debug=True
+        [analyst.value for analyst in selections["analysts"]], 
+        config=config, 
+        debug=True,
+        enable_counterfactual=selections["enable_counterfactual"]
     )
 
     # Create result directory
@@ -768,7 +798,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -779,7 +809,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -792,7 +822,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
         return wrapper
 
@@ -915,6 +945,23 @@ def run_analysis():
                     )
                     message_buffer.update_agent_status(
                         "Fundamentals Analyst", "completed"
+                    )
+                    # Set counterfactual analyst to in_progress if enabled
+                    if selections["enable_counterfactual"]:
+                        message_buffer.update_agent_status(
+                            "Counterfactual Analyst", "in_progress"
+                        )
+                    else:
+                        # Set research team members to in_progress
+                        update_research_team_status("in_progress")
+
+                # Handle counterfactual analysis
+                if "counterfactual_analysis" in chunk and chunk["counterfactual_analysis"]:
+                    message_buffer.update_report_section(
+                        "counterfactual_analysis", chunk["counterfactual_analysis"]
+                    )
+                    message_buffer.update_agent_status(
+                        "Counterfactual Analyst", "completed"
                     )
                     # Set all research team members to in_progress
                     update_research_team_status("in_progress")

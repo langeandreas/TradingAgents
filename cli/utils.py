@@ -1,7 +1,10 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -122,6 +125,32 @@ def select_research_depth() -> int:
     return choice
 
 
+def select_counterfactual_option() -> bool:
+    """Select whether to enable counterfactual scenario analysis."""
+    
+    choice = questionary.select(
+        "Enable Counterfactual Scenario Analysis?",
+        choices=[
+            questionary.Choice("Yes - Enable counterfactual analysis", True),
+            questionary.Choice("No - Disable counterfactual analysis", False),
+        ],
+        instruction="\n- Generates multiple market scenarios to enhance investment debates\n- Provides scenario-based stress testing for decisions\n- Improves robustness of investment recommendations",
+        style=questionary.Style(
+            [
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[yellow]Defaulting to enabled counterfactual analysis.[/yellow]")
+        return True
+
+    return choice
+
+
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
@@ -150,8 +179,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
+            ("llama3.1 local", "llama3.1:8b"),
+            ("llama3.2 local", "llama3.2:3b"),
         ]
     }
 
@@ -212,7 +241,8 @@ def select_deep_thinking_agent(provider) -> str:
             ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
+            ("llama3.1 local", "llama3.1:8b"),
+            ("llama3.2 local", "llama3.2:3b"),
             ("qwen3", "qwen3"),
         ]
     }
