@@ -52,6 +52,7 @@ class TradingAgentsGraph:
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
+        enable_counterfactual: bool = True,
     ):
         """Initialize the trading agents graph and components.
 
@@ -59,9 +60,11 @@ class TradingAgentsGraph:
             selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            enable_counterfactual: Whether to include counterfactual scenario analysis
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        self.enable_counterfactual = enable_counterfactual
 
         # Update the interface's config
         set_config(self.config)
@@ -122,7 +125,7 @@ class TradingAgentsGraph:
         self.log_states_dict = {}  # date to full state dict
 
         # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
+        self.graph = self.graph_setup.setup_graph(selected_analysts, self.enable_counterfactual)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
@@ -235,8 +238,9 @@ class TradingAgentsGraph:
         with open(
             f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
             "w",
+            encoding="utf-8"
         ) as f:
-            json.dump(self.log_states_dict, f, indent=4)
+            json.dump(self.log_states_dict, f, indent=2, ensure_ascii=False)
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""

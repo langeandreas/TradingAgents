@@ -6,6 +6,7 @@ from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
+from tradingagents.agents.counterfactual.counterfactual_agent import create_counterfactual_agent
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
@@ -38,14 +39,14 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self, selected_analysts=["market", "social", "news", "fundamentals"], enable_counterfactual=True
     ):
         """Set up and compile the agent workflow graph.
 
         Args:
             selected_analysts (list): List of analyst types to include. Options are:
                 - "market": Market analyst
-                - "social": Social media analyst
+                - "social": Social media analyst  
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
         """
@@ -85,7 +86,12 @@ class GraphSetup:
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
-        # Create researcher and manager nodes
+        # Create researcher nodes
+        counterfactual_node = None
+        if enable_counterfactual:
+            counterfactual_node = create_counterfactual_agent(
+                self.quick_thinking_llm, self.invest_judge_memory
+            )
         bull_researcher_node = create_bull_researcher(
             self.quick_thinking_llm, self.bull_memory
         )
@@ -117,6 +123,8 @@ class GraphSetup:
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
+        if enable_counterfactual:
+            workflow.add_node("Counterfactual Analyst", counterfactual_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
@@ -145,14 +153,19 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
+            # Connect to next analyst or to next node if this is the last analyst
             if i < len(selected_analysts) - 1:
                 next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+                if enable_counterfactual:
+                    workflow.add_edge(current_clear, "Counterfactual Analyst")
+                else:
+                    workflow.add_edge(current_clear, "Bull Researcher")
 
         # Add remaining edges
+        if enable_counterfactual:
+            workflow.add_edge("Counterfactual Analyst", "Bull Researcher")
         workflow.add_conditional_edges(
             "Bull Researcher",
             self.conditional_logic.should_continue_debate,
